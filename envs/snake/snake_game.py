@@ -15,12 +15,18 @@ class Setting:
 
     # ----- [ Window Size ] -----
 
-    WINDOW_WIDTH = 1280
-    WINDOW_HEIGHT = 1280
-    GRID = 20
+    WINDOW_WIDTH = 256
+    WINDOW_HEIGHT = 256
+    GRID = 4
     GRID_WIDTH = int(WINDOW_WIDTH/GRID)
     GRID_HEIGHT = int(WINDOW_HEIGHT/GRID)
 
+    def set_setting(w,h,g):
+        WINDOW_WIDTH = w
+        WINDOW_HEIGHT = h
+        GRID = g
+        GRID_WIDTH = int(WINDOW_WIDTH/GRID)
+        GRID_HEIGHT = int(WINDOW_HEIGHT/GRID)
     # ----- [ Color ] -----
 
     BLACK = 0, 0, 0
@@ -41,6 +47,12 @@ class Setting:
     WEST  = (-1,  0)
     EAST  = ( 1,  0)
 
+    def zoomIn(self):
+        self.WINDOW_WIDTH = self.WINDOW_WIDTH*6
+        self.WINDOW_HEIGHT = self.WINDOW_HEIGHT*6
+        self.GRID_WIDTH = int(self.WINDOW_WIDTH/self.GRID)
+        self.GRID_HEIGHT = int(self.WINDOW_HEIGHT/self.GRID)
+    
     def get_direction(self, discrete):
         if discrete == 0:
             return self.NORTH
@@ -87,7 +99,7 @@ class Setting:
 
 
     def show_info(self,surface, snake):
-        font = pygame.font.SysFont('malgungothic',30)
+        font = pygame.font.SysFont('malgungothic',15)
         image = font.render(f' food score : {snake.food_score} kill score: {snake.kill_score} ', True, self.WHITE)
         pos = image.get_rect()
         pos.move_ip(20,20)
@@ -151,7 +163,6 @@ class Snake(Setting):
         return self.positions[0]
     
     def gameover(self,surface,mode):
-        print(mode)
         if mode == "play":
             font = pygame.font.SysFont('malgungothic',50)
             image = font.render('GAME OVER', True, self.WHITE)
@@ -257,14 +268,15 @@ class Food(Setting):
 
 
     # ----- [ Game Class ] -----
-class SnakeGame(Snake, Ai_Snake):
+class SnakeGame(Setting):
     def __init__(self,set_game_mode = "play",set_ai_num = 10,set_food_num = 25, display: bool = True):
         self.game_mode = set_game_mode
         self.display = display
         self.run = True
         self.snake_group, self.ai_group, self.player = self.make_snakes(set_ai_num)
         self.food_group =  self.make_foods(set_food_num)
-    
+        self.game_score = 0
+        self.snake_list = []
     def make_snakes(self,d_num):
         d_player = Snake()
         snake_list=[d_player]
@@ -297,16 +309,15 @@ class SnakeGame(Snake, Ai_Snake):
     def draw_food_group(self,d_food_group, d_surface):
         for food in d_food_group:
             food.draw_food(d_surface)
-
+    
     # ----- [ Game Loop ] -----
     def GameStart(self):
 
 
         if self.game_mode == "play":        #GamePlay
-            pygame.init()
-            pygame.display.set_caption('SNAKE GAME')
-            self.screen = pygame.display.set_mode((self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+            self.start()
             self.clock = pygame.time.Clock()
+            self.update()
             while self.run:
 
                 for event in pygame.event.get():
@@ -323,23 +334,13 @@ class SnakeGame(Snake, Ai_Snake):
                             self.player.game_control(self.EAST)
                         if event.key == pygame.K_LEFT:
                             self.player.game_control(self.WEST)
-                for ai in self.ai_group:
-                    ai.game_control(random.choice([ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction, self.NORTH, self.SOUTH, self.WEST, self.EAST]))
-                self.draw_background(self.screen)
-                self.draw_snake_group(self.snake_group,self.food_group, self.screen)
-                self.draw_food_group(self.food_group, self.screen)
-                self.show_info(self.screen, self.player)                           
-                # pygame.display.flip()
-                pygame.display.update()
-                #np_array = UpdateMap() 
-                #print(np_array)
-                self.clock.tick(20)
 
+                        self.update()
         else:               #training
-            pygame.init()
-            pygame.display.set_caption('SNAKE GAME')
-            self.screen = pygame.Surface((self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
+            self.start()
+            self.update()
             self.clock = pygame.time.Clock()
+            self._screen_image = self.UpdateMap(self.screen)
             while self.run:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -348,35 +349,37 @@ class SnakeGame(Snake, Ai_Snake):
                         if event.key == pygame.K_q:
                             self.run = False
                 
-                discrete = 0   #Get discrete from agent dicrete = 0 ~ 3
-                            
-                self.player.game_control(self.get_direction(discrete))            
-                for ai in self.ai_group:
-                    ai.game_control(random.choice([ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction, self.NORTH, self.SOUTH, self.WEST, self.EAST]))
-                self.draw_background(self.screen)
-                self.draw_snake_group(self.snake_group,self.food_group, self.screen)
-                self.draw_food_group(self.food_group, self.screen)                      
-                np_array = self.UpdateMap(self.screen)     #3d image array 
-                self.clock.tick(10)
+                discrete = 0   #Get discrete from agent dicrete = 0 ~ 4
+                while():
+                    b, discrete = self.get_discrete()
+                    if b:
+                        break
+                self.player.game_control(self.get_direction(discrete))     
+                self.update()
 
         # ----- [ End Pygame ] -----
 
         print('pygame closed')
         pygame.quit()
         sys.exit()
-
-
-    game_score = 0
-    snake_list = []
+        
+        
+    def get_discrete(self):
+        discrete = random.choice([ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction, self.NORTH, self.SOUTH, self.WEST, self.EAST])
+        if 1:#외부함수
+            return True, discrete
+        return False, discrete
     
     def start(self):
         pygame.init()
         pygame.display.set_caption('SNAKE GAME')
-        if self.display:
+        if self.game_mode == "play":
             self.screen = pygame.display.set_mode((self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
         else:
             self.screen = pygame.Surface((self.WINDOW_WIDTH, self.WINDOW_HEIGHT))
-        self.clock = pygame.time.Clock()
+    
+    def roop():
+        yield
     
     def set_move(self, move_action: str):
         if move_action == "up":
@@ -391,18 +394,17 @@ class SnakeGame(Snake, Ai_Snake):
             raise ValueError(f"Invalid move action: {move_action}")
         
     def update(self):
-        self.player.game_control(self._direction)            
+        #self.player.game_control(self._direction)            
         for ai in self.ai_group:
             ai.game_control(random.choice([ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction,ai.direction, self.NORTH, self.SOUTH, self.WEST, self.EAST]))
         self.draw_background(self.screen)
         self.draw_snake_group(self.snake_group,self.food_group, self.screen)
         self.draw_food_group(self.food_group, self.screen)       
-        if self.display:
-            self.show_info(self.screen, self.player)                           
-            # pygame.display.flip()
+        if self.game_mode == "play":
+            #self.show_info(self.screen, self.player)                           
+            pygame.display.flip()
             pygame.display.update()               
         self._screen_image = self.UpdateMap(self.screen)     #3d image array 
-        self.clock.tick(60)
         
     def close(self):
         pygame.quit()
@@ -415,6 +417,7 @@ class SnakeGame(Snake, Ai_Snake):
     def game_over(self) -> bool:
         return not self.player.life
     
-# sg = SnakeGame("play")
+sg = SnakeGame("play")
+sg.GameStart()
 
-# sg.GameStart()
+
